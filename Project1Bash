@@ -1,2 +1,51 @@
 #!/bin/bash
 
+echo "Indexing the Reference"
+bwa  index -p ~/Project1/ProcessedData/ref_genome_index /projects/micb405/resources/project_1/ref_genome.fasta
+
+echo "Mapping to the Reference and Converting to Bam File"
+for fastq in /projects/micb405/resources/project_1/*_1.fastq.gz;
+do
+        prefix=$(basename $fastq | sed 's/_1.fastq.gz//g')
+        echo "Analyzing $prefix"
+        bwa mem -t 2 ~/Project1/ProcessedData/ref_genome_index /projects/micb405/resources/project_1/$prefix\_1.fastq.gz /projects/micb405/resources/project_1/$prefix\_2.fastq.gz | samtools view -b -  >~/Project1/ProcessedData/$prefix.bam
+done
+
+echo "Sorting Bam Files"
+for bam in ~/Project1/ProcessedData/*.bam;
+do 
+        prefix=$(basename $bam | sed 's/.bam//g')
+        echo "Analyzing $prefix"
+        samtools sort --threads 4  ~/Project1/ProcessedData/$prefix.bam > ~/Project1/ProcessedData/$prefix.sorted.bam
+done
+
+echo "Removing PCR Duplicates"
+for sorted in ~/Project1/ProcessedData/*.sorted.bam
+do
+        prefix=$(basename $sorted | sed 's/.sorted.bam//g')
+        echo "Analyzing $prefix"
+        samtools rmdup ~/Project1/ProcessedData/$prefix.sorted.bam ~/Project1/ProcessedData/$prefix.sorted.rmdup.bam
+done
+
+echo "Variant Calling and Conversion to VCF file"
+for sorted in ~/Project1/ProcessedData/*.sorted.rmdup.bam;
+do
+        prefix=$(basename $sorted | sed 's/.sorted.rmdup.bam//g')
+        echo "Analyzing $prefix"
+        bcftools mpileup --fasta-ref  ~/Project1/ProcessedData/ref_genome.fasta  ~/Project1/ProcessedData/$prefix.sorted.rmdup.bam | bcftools call  -mv - > ~/Project1/ProcessedData/$prefix.raw.vcf
+done
+
+echo "Variant Filtering"
+
+mv ~/Project1/ProcessedData/*.vcf ~/Project1/ProcessedData/vcf/
+python /projects/micb405/resources/vcf_to_fasta_het.py -x ~/Project1/ProcessedData/vcf/ output
+
+echo "Multiple Sequence Alignment"
+
+muscle -in ~/Project1/ProcessedData/vcf/output.fasta -out  ~/Project1/ProcessedData/zombie_muscle.mfa
+
+echo "Phylogenetic Tree Generation"
+
+raxml-ng --all --msa ~/Project1/ProcessedData/zombie_muscle.mfa --model ASC --tree rand{4} --bs-trees 4 --threads 2 --seed 12345
+
+echo "Finished Tree Generation"
