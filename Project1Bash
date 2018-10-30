@@ -44,8 +44,12 @@ echo "Multiple Sequence Alignment"
 
 muscle -in ~/Project1/ProcessedData/vcf/output.fasta -out  ~/Project1/ProcessedData/zombie_muscle.mfa
 
+echo "Filtering of MSA"
+
+trimal -automated1 -in ~/Project1/ProcessedData/zombie_muscle.mfa -out ~/Project1/ProcessedData/zombie_muscle_trimal.mfa
+
 echo "Phylogenetic Tree Generation"
 
-raxml-ng --all --msa ~/Project1/ProcessedData/zombie_muscle.mfa --model GTR+G4 --tree rand{20} --bs-trees 100 --threads 2 --seed 12345
+raxml-ng --all --msa ~/Project1/ProcessedData/zombie_muscle_trimal.mfa --model GTR+G4 --tree rand{20} --bs-trees 100 --threads 2 --seed 12345
 
 echo "Finished Tree Generation"
