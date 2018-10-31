@@ -11,12 +11,20 @@ do
         bwa mem -t 2 ~/Project1/ProcessedData/ref_genome_index /projects/micb405/resources/project_1/$prefix\_1.fastq.gz /projects/micb405/resources/project_1/$prefix\_2.fastq.gz | samtools view -b -  >~/Project1/ProcessedData/$prefix.bam
 done
 
-echo "Sorting Bam Files"
+echo "Filtering Bam Files"
 for bam in ~/Project1/ProcessedData/*.bam;
-do 
+do
         prefix=$(basename $bam | sed 's/.bam//g')
         echo "Analyzing $prefix"
-        samtools sort --threads 4  ~/Project1/ProcessedData/$prefix.bam > ~/Project1/ProcessedData/$prefix.sorted.bam
+        samtools view -b -F 4 --threads 2 -o ~/Project1/ProcessedData/$prefix.hits_only.bam ~/Project1/ProcessedData/$prefix.bam
+done
+        
+echo "Sorting Bam Files"
+for bam in ~/Project1/ProcessedData/*.hits_only.bam;
+do 
+        prefix=$(basename $bam | sed 's/.hits_only.bam//g')
+        echo "Analyzing $prefix"
+        samtools sort --threads 4  ~/Project1/ProcessedData/$prefix.hits_only.bam > ~/Project1/ProcessedData/$prefix.sorted.bam
 done
 
 echo "Removing PCR Duplicates"
@@ -32,7 +40,7 @@ for sorted in ~/Project1/ProcessedData/*.sorted.rmdup.bam;
 do
         prefix=$(basename $sorted | sed 's/.sorted.rmdup.bam//g')
         echo "Analyzing $prefix"
-        bcftools mpileup --fasta-ref  ~/Project1/ProcessedData/ref_genome.fasta  ~/Project1/ProcessedData/$prefix.sorted.rmdup.bam | bcftools call  -mv - > ~/Project1/ProcessedData/$prefix.raw.vcf
+        bcftools mpileup --fasta-ref  ~/Project1/ProcessedData/ref_genome.fasta  ~/Project1/ProcessedData/$prefix.sorted.rmdup.bam -I | bcftools call  -mv - > ~/Project1/ProcessedData/$prefix.raw.vcf
 done
 
 echo "Variant Filtering"
